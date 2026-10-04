@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -23,6 +24,7 @@ jobs:
           gradle-version: 9.5.1
 
       - name: Build
+        working-directory: ./greenmod
         run: gradle build --no-daemon
 
       - name: Upload mod jar
@@ -30,5 +32,5 @@ jobs:
         with:
           name: greenmod-jar
           path: |
-            build/libs/*.jar
-            !build/libs/*-sources.jar
+            greenmod/build/libs/*.jar
+            !greenmod/build/libs/*-sources.jar
