@@ -39,9 +39,14 @@ public final class InventorySorter {
 		LocalPlayer player = mc.player;
 		MultiPlayerGameMode gm = mc.gameMode;
 		if (player == null || gm == null) return;
+
 		AbstractContainerMenu menu = player.containerMenu;
+
 		if (!menu.getCarried().isEmpty()) {
-			player.displayClientMessage(Component.literal("Erst den Gegenstand an der Maus ablegen"), true);
+			mc.gui.setOverlayMessage(
+				Component.literal("Erst den Gegenstand an der Maus ablegen"),
+				true
+			);
 			return;
 		}
 
@@ -53,39 +58,67 @@ public final class InventorySorter {
 			sortRange(gm, player, id, 9, 35);
 		} else if (size >= 36) {
 			sortRange(gm, player, id, size - 36, size - 10);
-			if (Modules.SORT_CHEST.value && size > 36 && (menu instanceof ChestMenu || menu instanceof ShulkerBoxMenu)) {
+
+			if (Modules.SORT_CHEST.value
+					&& size > 36
+					&& (menu instanceof ChestMenu || menu instanceof ShulkerBoxMenu)) {
 				sortRange(gm, player, id, 0, size - 37);
 			}
 		}
 
-		player.displayClientMessage(Component.literal(clickFailed ? "Sortieren fehlgeschlagen (Klick-Methode fehlt)" : "Sortiert"), true);
+		mc.gui.setOverlayMessage(
+			Component.literal(
+				clickFailed
+					? "Sortieren fehlgeschlagen (Klick-Methode fehlt)"
+					: "Sortiert"
+			),
+			true
+		);
 	}
 
-	private static void sortRange(MultiPlayerGameMode gm, LocalPlayer p, int id, int first, int last) {
+	private static void sortRange(
+			MultiPlayerGameMode gm,
+			LocalPlayer p,
+			int id,
+			int first,
+			int last
+	) {
 		if (Modules.SORT_MERGE.value) {
 			for (int i = first; i <= last; i++) {
 				for (int j = i + 1; j <= last; j++) {
 					ItemStack a = slot(p, i);
 					ItemStack b = slot(p, j);
+
 					if (a.isEmpty() || b.isEmpty()) continue;
 					if (!ItemStack.isSameItemSameComponents(a, b)) continue;
 					if (a.getCount() >= a.getMaxStackSize()) break;
+
 					click(gm, id, j, p);
 					click(gm, id, i, p);
-					if (!p.containerMenu.getCarried().isEmpty()) click(gm, id, j, p);
+
+					if (!p.containerMenu.getCarried().isEmpty()) {
+						click(gm, id, j, p);
+					}
 				}
 			}
 		}
 
 		for (int i = first; i <= last; i++) {
 			int best = i;
+
 			for (int j = i + 1; j <= last; j++) {
-				if (ORDER.compare(slot(p, j), slot(p, best)) < 0) best = j;
+				if (ORDER.compare(slot(p, j), slot(p, best)) < 0) {
+					best = j;
+				}
 			}
+
 			if (best != i && ORDER.compare(slot(p, best), slot(p, i)) != 0) {
 				click(gm, id, best, p);
 				click(gm, id, i, p);
-				if (!p.containerMenu.getCarried().isEmpty()) click(gm, id, best, p);
+
+				if (!p.containerMenu.getCarried().isEmpty()) {
+					click(gm, id, best, p);
+				}
 			}
 		}
 	}
@@ -97,29 +130,40 @@ public final class InventorySorter {
 	public static void refillTick(Minecraft mc) {
 		LocalPlayer p = mc.player;
 		MultiPlayerGameMode gm = mc.gameMode;
+
 		if (p == null || gm == null || mc.screen != null) {
 			lastHeld = ItemStack.EMPTY;
 			lastSlot = -1;
 			return;
 		}
+
 		int sel = p.getInventory().getSelectedSlot();
 		ItemStack cur = p.getInventory().getItem(sel);
 
 		if (sel == lastSlot && cur.isEmpty() && !lastHeld.isEmpty()) {
 			clickFailed = false;
+
 			for (int i = 9; i <= 35; i++) {
 				ItemStack s = slot(p, i);
+
 				if (!s.isEmpty() && ItemStack.isSameItemSameComponents(s, lastHeld)) {
 					int id = p.inventoryMenu.containerId;
+
 					click(gm, id, i, p);
 					click(gm, id, 36 + sel, p);
-					if (!p.containerMenu.getCarried().isEmpty()) click(gm, id, i, p);
+
+					if (!p.containerMenu.getCarried().isEmpty()) {
+						click(gm, id, i, p);
+					}
+
 					break;
 				}
 			}
+
 			lastHeld = ItemStack.EMPTY;
 			return;
 		}
+
 		lastSlot = sel;
 		lastHeld = cur.isEmpty() ? ItemStack.EMPTY : cur.copy();
 	}
@@ -129,10 +173,18 @@ public final class InventorySorter {
 	}
 
 	/** Finds the click method by name, because it differs between 26.x versions. */
-	private static void click(MultiPlayerGameMode gm, int containerId, int slot, LocalPlayer p) {
+	private static void click(
+			MultiPlayerGameMode gm,
+			int containerId,
+			int slot,
+			LocalPlayer p
+	) {
 		try {
 			if (clickMethod == null) {
-				for (String name : new String[] {"handleContainerInput", "handleInventoryMouseClick"}) {
+				for (String name : new String[] {
+						"handleContainerInput",
+						"handleInventoryMouseClick"
+				}) {
 					for (Method m : MultiPlayerGameMode.class.getDeclaredMethods()) {
 						if (m.getName().equals(name) && m.getParameterCount() == 5) {
 							m.setAccessible(true);
@@ -140,14 +192,25 @@ public final class InventorySorter {
 							break;
 						}
 					}
+
 					if (clickMethod != null) break;
 				}
 			}
+
 			if (clickMethod == null) {
 				clickFailed = true;
 				return;
 			}
-			clickMethod.invoke(gm, containerId, slot, 0, ContainerInput.PICKUP, p);
+
+			clickMethod.invoke(
+				gm,
+				containerId,
+				slot,
+				0,
+				ContainerInput.PICKUP,
+				p
+			);
+
 		} catch (Exception e) {
 			clickFailed = true;
 		}
